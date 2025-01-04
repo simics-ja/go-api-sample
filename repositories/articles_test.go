@@ -5,13 +5,14 @@ import (
 
 	"github.com/simics-ja/go-api-sample/models"
 	"github.com/simics-ja/go-api-sample/repositories"
+	"github.com/simics-ja/go-api-sample/repositories/testdata"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 // SelectArticleList 関数のテスト
 func TestSelectArticleList(t *testing.T) {
-	expectNum := 2
+	expectNum := len(testdata.ArticleTestData)
 	got, err := repositories.SelectArticleList(testDB, 1)
 	if err != nil {
 		t.Fatal(err)
@@ -30,23 +31,11 @@ func TestSelectArticleDetail(t *testing.T) {
 	}{
 		{
 			testTitle: "subtest1",
-			expected: models.Article{
-				ID: 1,
-				Title: "firstPost",
-				Contents: "This is my first blog",
-				UserName: "saki",
-				NiceNum: 2,
-			},
+			expected: testdata.ArticleTestData[0],
 		},
 		{
 			testTitle: "subtest2",
-			expected: models.Article{
-				ID: 2,
-				Title: "2nd",
-				Contents: "Second blog post",
-				UserName: "saki",
-				NiceNum: 4,
-			},
+			expected: testdata.ArticleTestData[1],
 		},
 	}
 
