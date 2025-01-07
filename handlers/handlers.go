@@ -3,12 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/simics-ja/go-api-sample/models"
+	"github.com/simics-ja/go-api-sample/services"
 )
 
 func HelloHandler(w http.ResponseWriter, req *http.Request) {
@@ -22,7 +22,11 @@ func PostArticleHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "failed to decode json\n", http.StatusBadRequest)
 	}
 
-	article := reqArticle
+	article, err := services.PostArticleService(reqArticle)
+	if err != nil {
+		http.Error(w, "fail internal exec\n", http.StatusInternalServerError)
+	}
+
 	json.NewEncoder(w).Encode(article)
 }
 
@@ -41,9 +45,11 @@ func ArticleListHandler(w http.ResponseWriter, req *http.Request) {
 		page = 1
 	}
 
-	log.Println(page)
+	articleList, err := services.GetArticleListService(page)
+	if err != nil {
+		http.Error(w, "fail internal exec", http.StatusInternalServerError)
+	}
 
-	articleList := []models.Article{models.Article1, models.Article2}
 	json.NewEncoder(w).Encode(articleList)
 }
 
@@ -55,9 +61,11 @@ func ArticleDetailHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Println(articleID)
+	article, err := services.GetArticleService(articleID)
+	if err != nil {
+		http.Error(w, "fail internal exec\n", http.StatusInternalServerError)
+	}
 
-	article := models.Article1
 	json.NewEncoder(w).Encode(article)
 }
 
@@ -68,7 +76,11 @@ func PostNiceHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "failed to decode json\n", http.StatusBadRequest)
 	}
 
-	article := reqArticle
+	article, err := services.PostNiceService(reqArticle)
+	if err != nil {
+		http.Error(w, "fail internal exec\n", http.StatusInternalServerError)
+	}
+
 	json.NewEncoder(w).Encode(article)
 }
 
@@ -78,6 +90,10 @@ func PostCommentHandler(w http.ResponseWriter, req *http.Request) {
 	if err := json.NewDecoder(req.Body).Decode(&reqComment); err != nil {
 		http.Error(w, "failed to decode json\n", http.StatusBadRequest)
 	}
-	comment := reqComment
+	comment, err := services.PostCommentService(reqComment)
+	if err != nil {
+		http.Error(w, "fail internal exec\n", http.StatusInternalServerError)
+	}
+
 	json.NewEncoder(w).Encode(comment)
 }

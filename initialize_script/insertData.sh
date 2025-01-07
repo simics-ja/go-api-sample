@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Execute this script after container is up and running
-docker cp ./createTable.sql db-for-go:/createTable.sql
-docker exec -i db-for-go mysql -udocker -pdocker sampledb < ./createTable.sql
+set -eux
+
+SCRIPT_DIR=$(cd $(dirname $0);pwd)
+
+docker exec -i db-for-go mysql -udocker -pdocker sampledb < $SCRIPT_DIR/insertData.sql
 
 # docker compose exec mysql bash
 # mysql -udocker -pdocker sampledb

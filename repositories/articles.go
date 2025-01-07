@@ -20,7 +20,7 @@ func InsertArticle(db *sql.DB, article models.Article) (models.Article, error) {
 	`
 
 	newArticle := models.Article{
-		Title: article.Title,
+		Title:    article.Title,
 		Contents: article.Contents,
 		UserName: article.UserName,
 	}
