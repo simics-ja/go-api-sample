@@ -10,14 +10,13 @@ import (
 func (s *MyAppService) PostArticleService(article models.Article) (models.Article, error) {
 	newArticle, err := repositories.InsertArticle(s.db, article)
 	if err != nil {
-		return models.Article{}, nil
+		return models.Article{}, err
 	}
-
 	return newArticle, nil
 }
 
 // ArticleListHandlerで使うことを想定したサービス
-// 指定 page の記事一覧を返却
+// 指定pageの記事一覧を返却
 func (s *MyAppService) GetArticleListService(page int) ([]models.Article, error) {
 	articleList, err := repositories.SelectArticleList(s.db, page)
 	if err != nil {
@@ -28,13 +27,12 @@ func (s *MyAppService) GetArticleListService(page int) ([]models.Article, error)
 }
 
 // ArticleDetailHandlerで使うことを想定したサービス
-// 指定 ID の記事情報を返却
+// 指定IDの記事情報を返却
 func (s *MyAppService) GetArticleService(articleID int) (models.Article, error) {
 	article, err := repositories.SelectArticleDetail(s.db, articleID)
 	if err != nil {
 		return models.Article{}, err
 	}
-
 	commentList, err := repositories.SelectCommentList(s.db, articleID)
 	if err != nil {
 		return models.Article{}, err
@@ -46,7 +44,7 @@ func (s *MyAppService) GetArticleService(articleID int) (models.Article, error) 
 }
 
 // PostNiceHandlerで使うことを想定したサービス
-// 指定 ID の記事のいいね数を+1 して、結果を返却
+// 指定IDの記事のいいね数を+1して、結果を返却
 func (s *MyAppService) PostNiceService(article models.Article) (models.Article, error) {
 	err := repositories.UpdateNiceNum(s.db, article.ID)
 	if err != nil {

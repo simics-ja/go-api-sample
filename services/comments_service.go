@@ -12,5 +12,6 @@ func (s *MyAppService) PostCommentService(comment models.Comment) (models.Commen
 	if err != nil {
 		return models.Comment{}, err
 	}
+
 	return newComment, nil
 }

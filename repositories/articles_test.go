@@ -1,125 +1,124 @@
 package repositories_test
 
 import (
-	"testing"
+	"database/sql"
 
 	"github.com/simics-ja/go-api-sample/models"
-	"github.com/simics-ja/go-api-sample/repositories"
-	"github.com/simics-ja/go-api-sample/repositories/testdata"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// SelectArticleList 関数のテスト
-func TestSelectArticleList(t *testing.T) {
-	expectNum := len(testdata.ArticleTestData)
-	got, err := repositories.SelectArticleList(testDB, 1)
+const (
+	articleNumPerPage = 5
+)
+
+// 新規投稿をDBにinsertする関数
+func InsertArticle(db *sql.DB, article models.Article) (models.Article, error) {
+	const sqlStr = `
+	insert into articles (title, contents, username, nice, created_at) values
+	(?, ?, ?, 0, now());
+	`
+
+	var newArticle models.Article
+	newArticle.Title, newArticle.Contents, newArticle.UserName = article.Title, article.Contents, article.UserName
+
+	result, err := db.Exec(sqlStr, article.Title, article.Contents, article.UserName)
 	if err != nil {
-		t.Fatal(err)
+		return models.Article{}, err
 	}
 
-	if num := len(got); num != expectNum {
-		t.Errorf("got %d but want %d\n", num, expectNum)
-	}
+	id, _ := result.LastInsertId()
+
+	newArticle.ID = int(id)
+
+	return newArticle, nil
 }
 
-// SelectArticleDetail 関数のテスト
-func TestSelectArticleDetail(t *testing.T) {
-	tests := []struct {
-		testTitle string
-		expected models.Article
-	}{
-		{
-			testTitle: "subtest1",
-			expected: testdata.ArticleTestData[0],
-		},
-		{
-			testTitle: "subtest2",
-			expected: testdata.ArticleTestData[1],
-		},
+// 投稿一覧をDBから取得する関数
+func SelectArticleList(db *sql.DB, page int) ([]models.Article, error) {
+	const sqlStr = `
+		select article_id, title, contents, username, nice
+		from articles
+		limit ? offset ?;
+	`
+
+	rows, err := db.Query(sqlStr, articleNumPerPage, ((page - 1) * articleNumPerPage))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	articleArray := make([]models.Article, 0)
+	for rows.Next() {
+		var article models.Article
+		rows.Scan(&article.ID, &article.Title, &article.Contents, &article.UserName, &article.NiceNum)
+
+		articleArray = append(articleArray, article)
 	}
 
-	for _, test := range tests {
-		t.Run(test.testTitle, func(t *testing.T) {
-			got, err := repositories.SelectArticleDetail(testDB, test.expected.ID)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if got.ID != test.expected.ID {
-				t.Errorf("ID: get %d but want %d\n", got.ID, test.expected.ID)
-			}
-			if got.Title != test.expected.Title {
-				t.Errorf("Title: get %s but want %s\n", got.Title, test.expected.Title)
-			}
-			if got.Contents != test.expected.Contents {
-				t.Errorf("Contents: get %s but want %s\n", got.Contents, test.expected.Contents)
-			}
-			if got.UserName != test.expected.UserName {
-				t.Errorf("UserName: get %s but want %s\n", got.UserName, test.expected.UserName)
-			}
-			if got.NiceNum != test.expected.NiceNum {
-				t.Errorf("NiceNum: get %d but want %d\n", got.NiceNum, test.expected.NiceNum)
-			}
-		})
-	}
+	return articleArray, nil
 }
 
-// InsertArticle 関数のテスト
-func TestInsertArticle(t *testing.T) {
-	article := models.Article{
-		Title: "insertTest",
-		Contents: "testtest",
-		UserName: "saki",
-	}
-	expectedArticleNum := 3
-	newArticle, err := repositories.InsertArticle(testDB, article)
-	if err != nil {
-		t.Error(err)
-	}
-	if newArticle.ID != expectedArticleNum {
-		t.Errorf("new article id is expected %d but got %d\n", expectedArticleNum, newArticle.ID)
+// 投稿IDを指定して、記事データを取得する関数
+func SelectArticleDetail(db *sql.DB, articleID int) (models.Article, error) {
+	const sqlStr = `
+		select *
+		from articles
+		where article_id = ?;
+	`
+	row := db.QueryRow(sqlStr, articleID)
+	if err := row.Err(); err != nil {
+		return models.Article{}, err
 	}
 
-	t.Cleanup(func() {
-		const sqlStr = `
-			delete from articles
-			where title = ? and contents = ? and username = ?;
-		`
-		testDB.Exec(sqlStr, article.Title, article.Contents, article.UserName)
-	})
+	var article models.Article
+	var createdTime sql.NullTime
+	err := row.Scan(&article.ID, &article.Title, &article.Contents, &article.UserName, &article.NiceNum, &createdTime)
+	if err != nil {
+		return models.Article{}, err
+	}
+
+	if createdTime.Valid {
+		article.CreatedAt = createdTime.Time
+	}
+
+	return article, nil
 }
 
-// UpdateNiceNum関数のテスト
-func TestUpdateNiceNum(t *testing.T) {
-	articleID := 1
-
-	before, err := repositories.SelectArticleDetail(testDB, articleID)
+// いいねの数をupdateする関数
+func UpdateNiceNum(db *sql.DB, articleID int) error {
+	tx, err := db.Begin()
 	if err != nil {
-		t.Fatal("fail to get before data")
+		return err
 	}
 
-	err = repositories.UpdateNiceNum(testDB, articleID)
+	const sqlGetNice = `
+		select nice
+		from articles
+		where article_id = ?;
+	`
+	row := tx.QueryRow(sqlGetNice, articleID)
+	if err := row.Err(); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	var nicenum int
+	err = row.Scan(&nicenum)
 	if err != nil {
-		t.Fatal(err)
+		tx.Rollback()
+		return err
 	}
 
-	after, err := repositories.SelectArticleDetail(testDB, articleID)
+	const sqlUpdateNice = `update articles set nice = ? where article_id = ?`
+	_, err = tx.Exec(sqlUpdateNice, nicenum+1, articleID)
 	if err != nil {
-		t.Fatal("fail to get after data")
+		tx.Rollback()
+		return err
 	}
 
-	if after.NiceNum - before.NiceNum != 1 {
-		t.Error("fail to update nice num")
+	if err := tx.Commit(); err != nil {
+		return err
 	}
-
-	// テストデータを元に戻す
-	t.Cleanup(func() {
-		const sqlStr = `
-			update articles
-			set nice = ?
-			where article_id = ?;
-		`
-		testDB.Exec(sqlStr, before.NiceNum, articleID)
-	})
+	return nil
 }

@@ -14,13 +14,10 @@ func InsertComment(db *sql.DB, comment models.Comment) (models.Comment, error) {
 		insert into comments (article_id, message, created_at) values
 		(?, ?, now());
 	`
+	var newComment models.Comment
+	newComment.ArticleID, newComment.Message = comment.ArticleID, comment.Message
 
-	newComment := models.Comment{
-		ArticleID: comment.ArticleID,
-		Message: comment.Message,
-	}
-
-	result, err := db.Exec(sqlStr, newComment.ArticleID, newComment.Message)
+	result, err := db.Exec(sqlStr, comment.ArticleID, comment.Message)
 	if err != nil {
 		return models.Comment{}, err
 	}
@@ -45,14 +42,14 @@ func SelectCommentList(db *sql.DB, articleID int) ([]models.Comment, error) {
 	}
 	defer rows.Close()
 
-	commentArray := make([]models.Comment,0)
+	commentArray := make([]models.Comment, 0)
 	for rows.Next() {
 		var comment models.Comment
-		var createdAt sql.NullTime
-		rows.Scan(&comment.CommentID, &comment.ArticleID, &comment.Message, &createdAt)
+		var createdTime sql.NullTime
+		rows.Scan(&comment.CommentID, &comment.ArticleID, &comment.Message, &createdTime)
 
-		if createdAt.Valid {
-			comment.CreatedAt = createdAt.Time
+		if createdTime.Valid {
+			comment.CreatedAt = createdTime.Time
 		}
 
 		commentArray = append(commentArray, comment)

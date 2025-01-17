@@ -24,15 +24,5 @@ services:
     volumes:
       - db-volume:/var/lib/mysql
 
-  adminer:
-    platform: linux/x86_64
-    image: adminer
-    container_name: adminer
-    environment:
-      ADMINER_DEFAULT_SERVER: mysql
-    restart: always
-    ports:
-      - 8080:8080
-
 volumes:
   db-volume:
